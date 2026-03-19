@@ -1,0 +1,36 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Data
+data/*.npz
+data/*.h5
+
+# Experiments
+experiments/checkpoints/
+experiments/results/
+experiments/explainability/
+experiments/logs/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Env
+.env
+venv/
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
