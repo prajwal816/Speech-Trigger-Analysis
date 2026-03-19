@@ -126,7 +126,7 @@ class DataGenerator:
         (bypasses waveform → feature extraction for 100x speed on 1M+ samples).
         """
         N = num_samples or self.num_samples
-        logger.info("Fast-generating {} feature vectors …", N)
+        logger.info("Fast-generating {} feature vectors in batches of {} …", N, self.batch_size)
 
         y = np.random.randint(0, self.num_classes, size=N).astype(np.int64)
         accent_ids = np.random.randint(0, len(self.accents), size=N).astype(np.int32)
@@ -134,37 +134,49 @@ class DataGenerator:
 
         X = np.empty((N, self.feature_dim), dtype=np.float32)
 
-        for cls_id in range(self.num_classes):
-            mask = y == cls_id
-            n_cls = int(mask.sum())
-            if n_cls == 0:
-                continue
+        for start in trange(0, N, self.batch_size, desc="Fast-generating data"):
+            end = min(start + self.batch_size, N)
+            bs = end - start
+            
+            y_batch = y[start:end]
+            acc_batch = accent_ids[start:end]
+            noise_batch = noise_ids[start:end]
+            
+            X_batch = np.empty((bs, self.feature_dim), dtype=np.float32)
 
-            sig = _CLASS_SIGNATURES[cls_id % len(_CLASS_SIGNATURES)]
-            base = np.random.randn(n_cls, self.feature_dim).astype(np.float32)
-
-            # Class-specific bias on first few features
-            base[:, :self.extractor.n_mfcc] += sig["freq_center"] / 1000.0
-            base[:, self.extractor.n_mfcc: self.extractor.n_mfcc * 2] *= sig["bandwidth"] / 200.0
-            base *= sig["amplitude"]
-
-            # Accent perturbation (shift a subset of features)
-            for acc_idx, accent in enumerate(self.accents):
-                acc_mask = accent_ids[mask] == acc_idx
-                if acc_mask.sum() == 0:
+            for cls_id in range(self.num_classes):
+                mask = y_batch == cls_id
+                n_cls = int(mask.sum())
+                if n_cls == 0:
                     continue
-                shift = (acc_idx - 1) * 0.15
-                base[acc_mask, :4] += shift
 
-            # Noise perturbation
-            for nidx, snr in enumerate(self.noise_levels):
-                n_mask = noise_ids[mask] == nidx
-                if n_mask.sum() == 0:
-                    continue
-                noise_scale = 1.0 / (snr / 10.0)
-                base[n_mask] += np.random.randn(int(n_mask.sum()), self.feature_dim).astype(np.float32) * noise_scale
+                sig = _CLASS_SIGNATURES[cls_id % len(_CLASS_SIGNATURES)]
+                base = np.random.randn(n_cls, self.feature_dim).astype(np.float32)
 
-            X[mask] = base
+                # Class-specific bias on first few features
+                base[:, :self.extractor.n_mfcc] += sig["freq_center"] / 1000.0
+                base[:, self.extractor.n_mfcc: self.extractor.n_mfcc * 2] *= sig["bandwidth"] / 200.0
+                base *= sig["amplitude"]
+
+                # Accent perturbation (shift a subset of features)
+                for acc_idx, accent in enumerate(self.accents):
+                    acc_mask = acc_batch[mask] == acc_idx
+                    if acc_mask.sum() == 0:
+                        continue
+                    shift = (acc_idx - 1) * 0.15
+                    base[acc_mask, :4] += shift
+
+                # Noise perturbation
+                for nidx, snr in enumerate(self.noise_levels):
+                    n_mask = noise_batch[mask] == nidx
+                    if n_mask.sum() == 0:
+                        continue
+                    noise_scale = 1.0 / (snr / 10.0)
+                    base[n_mask] += np.random.randn(int(n_mask.sum()), self.feature_dim).astype(np.float32) * noise_scale
+
+                X_batch[mask] = base
+                
+            X[start:end] = X_batch
 
         return X, y, accent_ids, noise_ids
 
