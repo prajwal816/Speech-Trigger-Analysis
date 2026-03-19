@@ -1,0 +1,102 @@
+# ──────────────────────────────────────────────
+# Speech-Trigger Analysis — Default Configuration
+# ──────────────────────────────────────────────
+
+project:
+  name: "Speech-Trigger-Analysis"
+  seed: 42
+  device: "auto"          # auto | cpu | cuda
+
+# ── Audio / Feature Extraction ────────────────
+audio:
+  sample_rate: 16000
+  duration_sec: 2.0       # clip length in seconds
+
+features:
+  mfcc:
+    n_mfcc: 13
+    n_fft: 2048
+    hop_length: 512
+  mel_spectrogram:
+    n_mels: 128
+    n_fft: 2048
+    hop_length: 512
+  temporal:
+    zero_crossing: true
+    rms_energy: true
+    spectral_centroid: true
+    spectral_rolloff: true
+
+# ── Data Generation ──────────────────────────
+data:
+  num_samples: 1_000_000
+  batch_size: 4096
+  num_classes: 4          # number of trigger categories
+  accents:
+    - "neutral"
+    - "british"
+    - "indian"
+    - "australian"
+  noise_levels:           # SNR in dB
+    - 40
+    - 30
+    - 20
+    - 10
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+  output_dir: "data"
+
+# ── Model ────────────────────────────────────
+model:
+  type: "hybrid"          # hybrid | sklearn | dnn
+  sklearn:
+    estimator: "gradient_boosting"
+    n_estimators: 200
+    max_depth: 6
+    learning_rate: 0.1
+  dnn:
+    hidden_dims: [256, 128, 64]
+    dropout: 0.3
+    activation: "relu"
+    batch_norm: true
+
+# ── Training ─────────────────────────────────
+training:
+  epochs: 30
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  batch_size: 256
+  early_stopping:
+    patience: 5
+    min_delta: 0.001
+  scheduler:
+    type: "cosine"        # cosine | step | plateau
+    step_size: 10
+    gamma: 0.5
+  checkpoint_dir: "experiments/checkpoints"
+
+# ── Evaluation ───────────────────────────────
+evaluation:
+  metrics:
+    - "accuracy"
+    - "roc_auc"
+    - "f1_score"
+    - "confusion_matrix"
+  output_dir: "experiments/results"
+
+# ── Explainability ───────────────────────────
+explainability:
+  shap:
+    max_samples: 500      # samples for SHAP computation
+    plot_type: "bar"      # bar | beeswarm | waterfall
+  feature_importance:
+    top_k: 20
+  accent_analysis:
+    enabled: true
+  output_dir: "experiments/explainability"
+
+# ── Logging ──────────────────────────────────
+logging:
+  level: "INFO"
+  log_file: "experiments/logs/run.log"
